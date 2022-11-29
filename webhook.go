@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/adnanh/webhook/internal/job"
 	"io/ioutil"
 	"log"
 	"net"
@@ -184,6 +185,7 @@ func main() {
 
 	// set os signal watcher
 	setupSignals()
+	appCtx := job.SetupSignalHandler()
 
 	// load and parse hooks
 	for _, hooksFilePath := range hooksFiles {
@@ -269,6 +271,9 @@ func main() {
 	})
 
 	r.HandleFunc(hooksURL, hookHandler)
+
+	eventHandler := job.NewHookEventHandler(100)
+	job.StartQueueDispatcher(*eventHandler, appCtx)
 
 	// Create common HTTP server settings
 	svr := &http.Server{
@@ -523,7 +528,12 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprint(w, response)
 			}
 		} else {
-			go handleHook(matchedHook, req)
+			//go handleHook(matchedHook, req)
+			job.Push(job.HookEvent{
+				Hook: *matchedHook,
+				Request: *req,
+			})
+
 
 			// Check if a success return code is configured for the hook
 			if matchedHook.SuccessHttpResponseCode != 0 {

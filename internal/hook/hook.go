@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/oliveagle/jsonpath"
 	"hash"
 	"io/ioutil"
 	"log"
@@ -411,8 +412,15 @@ func GetParameter(s string, params interface{}) (interface{}, error) {
 // ExtractParameterAsString extracts value from interface{} as string based on
 // the passed string.  Complex data types are rendered as JSON instead of the Go
 // Stringer format.
-func ExtractParameterAsString(s string, params interface{}) (string, error) {
-	pValue, err := GetParameter(s, params)
+func ExtractParameterAsString(s string, params interface{}, jpath string) (string, error) {
+	var pValue interface{}
+	var err error
+	if len(jpath) > 0 {
+		pValue, err = GetParameterJPath(jpath, params)
+	} else {
+		pValue, err = GetParameter(s, params)
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -431,6 +439,16 @@ func ExtractParameterAsString(s string, params interface{}) (string, error) {
 	}
 }
 
+func GetParameterJPath(s string, params interface{}) (interface{}, error) {
+	//res, err := jsonpath.JsonPathLookup(params, "$.expensive")
+
+	//or reuse lookup pattern
+	//pat, _ := jsonpath.Compile(`$.store.book[?(@.price < $.expensive)].price`)
+	pat, _ := jsonpath.Compile(s)
+	res, err := pat.Lookup(params)
+	return res, err
+}
+
 // Argument type specifies the parameter key name and the source it should
 // be extracted from
 type Argument struct {
@@ -438,6 +456,7 @@ type Argument struct {
 	Name         string `json:"name,omitempty"`
 	EnvName      string `json:"envname,omitempty"`
 	Base64Decode bool   `json:"base64decode,omitempty"`
+	Expression   string `json:"expression,omitempty"`
 }
 
 // Get Argument method returns the value for the Argument's key name
@@ -503,7 +522,7 @@ func (ha *Argument) Get(r *Request) (string, error) {
 	}
 
 	if source != nil {
-		return ExtractParameterAsString(key, *source)
+		return ExtractParameterAsString(key, *source, ha.Expression)
 	}
 
 	return "", errors.New("no source for value retrieval")
