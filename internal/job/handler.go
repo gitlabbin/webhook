@@ -1,13 +1,14 @@
 package job
 
 import (
-	"github.com/adnanh/webhook/internal/hook"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/adnanh/webhook/internal/hook"
 )
 
 type HookEventHandler struct {
@@ -15,7 +16,7 @@ type HookEventHandler struct {
 	updateChannel chan HookEvent
 }
 
-func NewHookEventHandler( channelSize int) *HookEventHandler {
+func NewHookEventHandler(channelSize int) *HookEventHandler {
 	return &HookEventHandler{
 		sendUpdates:   make(chan struct{}),
 		updateChannel: GetJobQueue(), //reference of dispatcher jobQueue
@@ -23,13 +24,13 @@ func NewHookEventHandler( channelSize int) *HookEventHandler {
 }
 
 func (hookEvtHandler *HookEventHandler) apply(event HookEvent) {
-	_, err := handleHook(&event.Hook, &event.Request)
+	_, err := HandleHook(&event.Hook, &event.Request)
 	if err != nil {
 		return
 	}
 }
 
-func handleHook(h *hook.Hook, r *hook.Request) (string, error) {
+func HandleHook(h *hook.Hook, r *hook.Request) (string, error) {
 	var errors []error
 
 	// check the command exists
@@ -120,7 +121,6 @@ func handleHook(h *hook.Hook, r *hook.Request) (string, error) {
 
 	return string(out), err
 }
-
 
 // Writer retrieves the interface that should be used to write to the StatusUpdateHandler.
 func (hookEvtHandler *HookEventHandler) Writer() EventUpdater {

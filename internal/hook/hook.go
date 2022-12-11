@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/oliveagle/jsonpath"
 	"hash"
 	"io/ioutil"
 	"log"
@@ -26,6 +25,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/oliveagle/jsonpath"
 
 	"github.com/ghodss/yaml"
 )

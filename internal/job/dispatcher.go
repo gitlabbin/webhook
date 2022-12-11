@@ -2,15 +2,18 @@ package job
 
 import (
 	"context"
-	"github.com/adnanh/webhook/internal/hook"
-	"github.com/sirupsen/logrus"
 	"hash/crc32"
 	"log"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/adnanh/webhook/internal/hook"
 )
 
+// HookEvent used to combine the hook and repository push event
 type HookEvent struct {
-	Hook hook.Hook
+	Hook    hook.Hook
 	Request hook.Request
 }
 
@@ -40,7 +43,8 @@ type Dispatcher struct {
 	Suh        HookEventHandler
 }
 
-func StartQueueDispatcher(suh HookEventHandler, ctx context.Context) {
+// StartQueueDispatcher to initial loading the queue dispatcher
+func StartQueueDispatcher(ctx context.Context, suh HookEventHandler) {
 	logrus.Infoln("Queue Dispatcher starting......")
 	queueDispatcher := NewDispatcher(4, suh)
 	queueDispatcher.Run(ctx)
@@ -68,6 +72,7 @@ func (d *Dispatcher) Run(ctx context.Context) {
 	go d.dispatchPartition(ctx)
 }
 
+// Dispatch get job from queue and put into labelled job channel
 func (d *Dispatcher) Dispatch() {
 	for {
 		job := <-jobQueue
@@ -127,7 +132,7 @@ func (u *HookEvent) Partition(partitions uint32) uint32 {
 	return crc32.ChecksumIEEE([]byte(u.Hook.ID)) % partitions
 }
 
+// Push allows external push HookEvent to jobQueue
 func Push(job HookEvent) {
 	jobQueue <- job
 }
-
