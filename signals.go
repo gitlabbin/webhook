@@ -43,7 +43,7 @@ func watchForSignals() {
 					log.Print(err)
 				}
 			}
-			os.Exit(0)
+			//os.Exit(0)
 
 		default:
 			log.Printf("caught unhandled signal %+v\n", sig)

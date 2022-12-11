@@ -1,5 +1,5 @@
-OS = darwin freebsd linux openbsd
-ARCHS = 386 arm amd64 arm64
+OS = linux
+ARCHS = amd64
 
 .DEFAULT_GOAL := help
 
@@ -23,6 +23,7 @@ release: clean deps ## Generate releases for unix systems
 			tar cz -C build -f build/webhook-$$os-$$arch.tar.gz webhook-$$os-$$arch; \
 		done \
 	done
+	cp build/webhook-linux-amd64/webhook ~/workspace/icc/cicd-hooks/docker-webhook/bin
 
 release-windows: clean deps ## Generate release for windows
 	@for arch in $(ARCHS);\

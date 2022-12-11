@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -72,7 +73,7 @@ func (w Worker) Start(ctx context.Context) {
 			case job := <-w.JobLabelChannel.JobChannel:
 				// we have received a work request.
 				// track the total number of jobs processed by the worker
-				logrus.Infof("%v doing job: %v", w.Name, job)
+				log.Printf("[%s] %s doing job: \n", job.Request.ID, w.Name)
 				w.Suh.apply(job)
 
 			case <-ctx.Done():

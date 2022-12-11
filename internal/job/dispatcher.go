@@ -5,6 +5,7 @@ import (
 	"github.com/adnanh/webhook/internal/hook"
 	"github.com/sirupsen/logrus"
 	"hash/crc32"
+	"log"
 	"sync"
 )
 
@@ -71,7 +72,7 @@ func (d *Dispatcher) Dispatch() {
 	for {
 		job := <-jobQueue
 		// a job request has been received
-		logrus.Infof("NewJob ticket %v", job)
+		log.Printf("[%s] %s NewJob ticket\n", job.Request.ID, job.Hook.ID)
 		go func(job HookEvent) {
 			// try to obtain a worker job channel that is available.
 			// this will block until a worker is idle
@@ -95,7 +96,7 @@ func (d *Dispatcher) dispatchPartition(ctx context.Context) {
 			go func(job HookEvent, ctx context.Context) {
 				part := job.Partition(d.maxWorkers)
 				// a job request has been received
-				logrus.Infof("NewJob ticket %v, partition: %d", job, part)
+				log.Printf("[%s] %s NewJob ticket, partition: %d \n", job.Request.ID, job.Hook.ID, part)
 				// try to obtain a worker job channel that is available.
 				// this will block until a worker is idle
 				for {
