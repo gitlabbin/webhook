@@ -182,8 +182,8 @@ func main() {
 	log.Println("version " + version + " starting")
 
 	// set os signal watcher
-	setupSignals()
-	appCtx := job.SetupSignalHandler()
+	//setupSignals()
+	appCtx := SetupSignalHandler()
 
 	// load and parse hooks
 	for _, hooksFilePath := range hooksFiles {

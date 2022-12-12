@@ -226,3 +226,5 @@ THE SOFTWARE.
 ### JSONPath lib
 https://github.com/ohler55/ojg
 https://github.com/oliveagle/jsonpath
+
+./webhook -verbose -hotreload -hooks=hooks.yaml
