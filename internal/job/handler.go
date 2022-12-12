@@ -11,11 +11,13 @@ import (
 	"github.com/adnanh/webhook/internal/hook"
 )
 
+// HookEventHandler include 2 channels for handler
 type HookEventHandler struct {
 	sendUpdates   chan struct{}
 	updateChannel chan HookEvent
 }
 
+// NewHookEventHandler initial handler with job queue and channel
 func NewHookEventHandler(channelSize int) *HookEventHandler {
 	return &HookEventHandler{
 		sendUpdates:   make(chan struct{}),
@@ -30,6 +32,7 @@ func (hookEvtHandler *HookEventHandler) apply(event HookEvent) {
 	}
 }
 
+// HandleHook process the hook with coming request
 func HandleHook(h *hook.Hook, r *hook.Request) (string, error) {
 	var errors []error
 

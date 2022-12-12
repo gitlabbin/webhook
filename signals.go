@@ -45,13 +45,12 @@ func SetupSignalHandler() context.Context {
 				}
 			}
 			//os.Exit(0)
+			<-c
+			os.Exit(1) // second signal. Exit directly.
 
 		default:
 			log.Printf("caught unhandled signal %+v\n", sig)
 		}
-
-		<-c
-		os.Exit(1) // second signal. Exit directly.
 	}()
 
 	return ctx

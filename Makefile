@@ -8,7 +8,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 #all: build release release-windows
-all: imports fmt lint vet build release
+all: fmt lint vet build release
 
 build: deps ## Build the project
 	go build
@@ -66,5 +66,5 @@ lint:
 imports:
 	goimports -l -w .
 
-fmt:
+fmt: imports
 	go fmt ./...

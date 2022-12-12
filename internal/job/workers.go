@@ -43,6 +43,7 @@ type Worker struct {
 	Suh             HookEventHandler
 }
 
+// LabelChannel make channel support partition
 type LabelChannel struct {
 	Label      uint32
 	JobChannel chan HookEvent
