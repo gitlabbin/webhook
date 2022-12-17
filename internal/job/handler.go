@@ -26,7 +26,7 @@ type HookEventHandler struct {
 func NewHookEventHandler(channelSize int) EventProcessor {
 	return &HookEventHandler{
 		sendUpdates:   make(chan struct{}),
-		updateChannel: GetJobQueue(), //reference of dispatcher jobQueue
+		updateChannel: GetJobQueue(channelSize), //reference of dispatcher jobQueue
 	}
 }
 

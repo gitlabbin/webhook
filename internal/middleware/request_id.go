@@ -56,6 +56,7 @@ func GetReqID(ctx context.Context) string {
 	return ""
 }
 
+// UseXRequestIDHeaderOption flag to use request ID
 func UseXRequestIDHeaderOption(f bool) RequestIDOption {
 	return func(o *RequestIDOptions) *RequestIDOptions {
 		o.useXRequestID = f
@@ -63,6 +64,7 @@ func UseXRequestIDHeaderOption(f bool) RequestIDOption {
 	}
 }
 
+// XRequestIDLimitOption option of request ID limit
 func XRequestIDLimitOption(limit int) RequestIDOption {
 	return func(o *RequestIDOptions) *RequestIDOptions {
 		o.requestIDLimit = limit
@@ -70,7 +72,9 @@ func XRequestIDLimitOption(limit int) RequestIDOption {
 	}
 }
 
+// RequestIDOptions data type of request ID option
 type (
+	// RequestIDOption type
 	RequestIDOption func(*RequestIDOptions) *RequestIDOptions
 
 	RequestIDOptions struct {
@@ -93,6 +97,7 @@ func newRequestIDOptions(options ...RequestIDOption) *RequestIDOptions {
 	return o
 }
 
+// UseRequestID flag to use request ID
 func (o *RequestIDOptions) UseRequestID() bool {
 	return o.useXRequestID
 }

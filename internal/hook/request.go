@@ -38,6 +38,7 @@ type Request struct {
 	AllowSignatureErrors bool
 }
 
+// ParseJSONPayload parse the json payload of request
 func (r *Request) ParseJSONPayload() error {
 	decoder := json.NewDecoder(bytes.NewReader(r.Body))
 	decoder.UseNumber()
@@ -70,6 +71,7 @@ func (r *Request) ParseJSONPayload() error {
 	return nil
 }
 
+// ParseHeaders parse the request headers
 func (r *Request) ParseHeaders(headers map[string][]string) {
 	r.Headers = make(map[string]interface{}, len(headers))
 
@@ -80,6 +82,7 @@ func (r *Request) ParseHeaders(headers map[string][]string) {
 	}
 }
 
+// ParseQuery parse request query
 func (r *Request) ParseQuery(query map[string][]string) {
 	r.Query = make(map[string]interface{}, len(query))
 
@@ -90,6 +93,7 @@ func (r *Request) ParseQuery(query map[string][]string) {
 	}
 }
 
+// ParseFormPayload parse the request
 func (r *Request) ParseFormPayload() error {
 	fd, err := url.ParseQuery(string(r.Body))
 	if err != nil {
@@ -107,6 +111,7 @@ func (r *Request) ParseFormPayload() error {
 	return nil
 }
 
+// ParseXMLPayload parse xml payload
 func (r *Request) ParseXMLPayload() error {
 	var err error
 

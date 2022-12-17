@@ -2,33 +2,11 @@ package job
 
 import (
 	"context"
-	"hash/crc32"
 	"log"
 	"sync"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/adnanh/webhook/internal/hook"
 )
-
-// HookEvent used to combine the hook and repository push event
-type HookEvent struct {
-	Hook    hook.Hook
-	Request hook.Request
-}
-
-var (
-	initOnce sync.Once
-	jobQueue chan HookEvent
-)
-
-// GetJobQueue a buffered channel that we can send work requests on.
-func GetJobQueue() chan HookEvent {
-	initOnce.Do(func() {
-		jobQueue = make(chan HookEvent, 100)
-	})
-	return jobQueue
-}
 
 // Queueable interface of Queueable Job
 type Queueable interface {
@@ -44,32 +22,32 @@ type Dispatcher struct {
 }
 
 // StartQueueDispatcher to initial loading the queue dispatcher
-func StartQueueDispatcher(ctx context.Context, eventProcessor EventProcessor) {
+func StartQueueDispatcher(ctx context.Context, wg *sync.WaitGroup, eventProcessor EventProcessor, queueSize int, maxWorkers uint32) {
 	logrus.Infoln("Queue Dispatcher starting......")
-	queueDispatcher := NewDispatcher(4, eventProcessor)
-	queueDispatcher.Run(ctx)
+	queueDispatcher := NewDispatcher(queueSize, maxWorkers, eventProcessor)
+	queueDispatcher.Run(ctx, wg)
 
 }
 
 // NewDispatcher creates new queue dispatcher
-func NewDispatcher(maxWorkers uint32, eventProcessor EventProcessor) *Dispatcher {
+func NewDispatcher(queueSize int, maxWorkers uint32, eventProcessor EventProcessor) *Dispatcher {
 	// make job
-	_ = GetJobQueue()
+	_ = GetJobQueue(queueSize)
 
 	pool := make(chan LabelChannel, maxWorkers)
 	return &Dispatcher{WorkerPool: pool, maxWorkers: maxWorkers, Processor: eventProcessor}
 }
 
 // Run starts work of dispatcher and creates the workers
-func (d *Dispatcher) Run(ctx context.Context) {
+func (d *Dispatcher) Run(ctx context.Context, wg *sync.WaitGroup) {
 	// starting n number of workers
 	for i := uint32(0); i < d.maxWorkers; i++ {
 		worker := NewWorker(d.WorkerPool, d.Processor)
-		worker.Start(ctx)
+		worker.Start(ctx, wg)
 		d.Workers = append(d.Workers, worker)
 	}
 
-	go d.dispatchPartition(ctx)
+	go d.dispatchPartition(ctx, wg)
 }
 
 // Dispatch get job from queue and put into labelled job channel
@@ -90,7 +68,9 @@ func (d *Dispatcher) Dispatch() {
 	}
 }
 
-func (d *Dispatcher) dispatchPartition(ctx context.Context) {
+func (d *Dispatcher) dispatchPartition(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done() // decrements the WaitGroup counter by one when the function returns
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -125,14 +105,4 @@ func (d *Dispatcher) dispatchPartition(ctx context.Context) {
 			}(job, ctx)
 		}
 	}
-}
-
-// Partition calculates a numbered partition this StatusUpdate belongs to based on a max of partitions
-func (u *HookEvent) Partition(partitions uint32) uint32 {
-	return crc32.ChecksumIEEE([]byte(u.Hook.ID)) % partitions
-}
-
-// Push allows external push HookEvent to jobQueue
-func Push(job HookEvent) {
-	jobQueue <- job
 }

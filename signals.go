@@ -8,19 +8,24 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
 var sysSignals = []os.Signal{syscall.SIGUSR1, syscall.SIGHUP, os.Interrupt, syscall.SIGTERM}
 
+// a WaitGroup waits for a collection of goroutines to finish, pass this by address
+var waitGroup = sync.WaitGroup{}
+
 // SetupSignalHandler registers for SIGTERM and SIGINT. A context is returned
 // which is canceled on one of these signals. If a second signal is caught, the program
 // is terminated with exit code 1.
-func SetupSignalHandler() context.Context {
+func SetupSignalHandler(maxWorkers uint32) context.Context {
 	close(onlyOneSignalHandler) // panics when called twice
 
 	ctx, cancel := context.WithCancel(context.Background())
+	waitGroup.Add(1 + int(maxWorkers)) // adds delta, if the counter becomes zero, all goroutines blocked on Wait are released
 
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, sysSignals...)
@@ -45,8 +50,9 @@ func SetupSignalHandler() context.Context {
 				}
 			}
 			//os.Exit(0)
-			<-c
-			os.Exit(1) // second signal. Exit directly.
+			//<-c
+			waitGroup.Wait() // it blocks until the WaitGroup counter is zero
+			os.Exit(1)       // second signal. Exit directly.
 
 		default:
 			log.Printf("caught unhandled signal %+v\n", sig)

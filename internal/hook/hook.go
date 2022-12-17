@@ -236,7 +236,7 @@ func CheckPayloadSignature512(payload []byte, secret, signature string) (string,
 	return ValidateMAC(payload, hmac.New(sha512.New, []byte(secret)), signatures)
 }
 
-func CheckScalrSignature(r *Request, signingKey string, checkDate bool) (bool, error) {
+func checkScalrSignature(r *Request, signingKey string, checkDate bool) (bool, error) {
 	if r.Headers == nil {
 		return false, nil
 	}
@@ -417,7 +417,7 @@ func ExtractParameterAsString(s string, params interface{}, jpath string) (strin
 	var pValue interface{}
 	var err error
 	if len(jpath) > 0 {
-		pValue, err = GetParameterJPath(jpath, params)
+		pValue, err = getParameterJPath(jpath, params)
 	} else {
 		pValue, err = GetParameter(s, params)
 	}
@@ -440,7 +440,7 @@ func ExtractParameterAsString(s string, params interface{}, jpath string) (strin
 	}
 }
 
-func GetParameterJPath(s string, params interface{}) (interface{}, error) {
+func getParameterJPath(s string, params interface{}) (interface{}, error) {
 	//res, err := jsonpath.JsonPathLookup(params, "$.expensive")
 
 	//or reuse lookup pattern
@@ -596,10 +596,10 @@ type Hook struct {
 	PassFileToCommand                   []Argument      `json:"pass-file-to-command,omitempty"`
 	JSONStringParameters                []Argument      `json:"parse-parameters-as-json,omitempty"`
 	TriggerRule                         *Rules          `json:"trigger-rule,omitempty"`
-	TriggerRuleMismatchHttpResponseCode int             `json:"trigger-rule-mismatch-http-response-code,omitempty"`
+	TriggerRuleMismatchHTTPResponseCode int             `json:"trigger-rule-mismatch-http-response-code,omitempty"`
 	TriggerSignatureSoftFailures        bool            `json:"trigger-signature-soft-failures,omitempty"`
 	IncomingPayloadContentType          string          `json:"incoming-payload-content-type,omitempty"`
-	SuccessHttpResponseCode             int             `json:"success-http-response-code,omitempty"`
+	SuccessHTTPResponseCode             int             `json:"success-http-response-code,omitempty"`
 	HTTPMethods                         []string        `json:"http-methods"`
 }
 
@@ -934,7 +934,7 @@ func (r MatchRule) Evaluate(req *Request) (bool, error) {
 		return CheckIPWhitelist(req.RawRequest.RemoteAddr, r.IPRange)
 	}
 	if r.Type == ScalrSignature {
-		return CheckScalrSignature(req, r.Secret, true)
+		return checkScalrSignature(req, r.Secret, true)
 	}
 
 	arg, err := r.Parameter.Get(req)

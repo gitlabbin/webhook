@@ -180,7 +180,7 @@ func TestCheckScalrSignature(t *testing.T) {
 			Headers: testCase.headers,
 			Body:    testCase.body,
 		}
-		valid, err := CheckScalrSignature(r, testCase.secret, false)
+		valid, err := checkScalrSignature(r, testCase.secret, false)
 		if valid != testCase.ok {
 			t.Errorf("failed to check scalr signature fot test case: %s\nexpected ok:%#v, got ok:%#v}",
 				testCase.description, testCase.ok, valid)

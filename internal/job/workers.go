@@ -64,8 +64,10 @@ func NewWorker(workerPool chan LabelChannel, processor EventProcessor) Worker {
 }
 
 // Start initiate worker to start lisntening for upcomings queueable jobs
-func (w Worker) Start(ctx context.Context) {
-	go func() {
+func (w Worker) Start(ctx context.Context, wg *sync.WaitGroup) {
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done() // decrements the WaitGroup counter by one when the function returns
+
 		for {
 			// register the current worker into the worker queue.
 			w.WorkerPool <- w.JobLabelChannel
@@ -87,7 +89,7 @@ func (w Worker) Start(ctx context.Context) {
 				return
 			}
 		}
-	}()
+	}(wg)
 }
 
 // Stop signals the worker to stop listening for work requests.
