@@ -271,7 +271,7 @@ func main() {
 	r.HandleFunc(hooksURL, hookHandler)
 
 	eventHandler := job.NewHookEventHandler(100)
-	job.StartQueueDispatcher(appCtx, *eventHandler)
+	job.StartQueueDispatcher(appCtx, eventHandler)
 
 	// Create common HTTP server settings
 	svr := &http.Server{

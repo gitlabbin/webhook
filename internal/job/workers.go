@@ -40,7 +40,7 @@ type Worker struct {
 	WorkerPool      chan LabelChannel
 	JobLabelChannel LabelChannel
 	quit            chan bool
-	Suh             HookEventHandler
+	Processor       EventProcessor
 }
 
 // LabelChannel make channel support partition
@@ -50,7 +50,7 @@ type LabelChannel struct {
 }
 
 // NewWorker creates a new worker
-func NewWorker(workerPool chan LabelChannel, suh HookEventHandler) Worker {
+func NewWorker(workerPool chan LabelChannel, processor EventProcessor) Worker {
 	defer counters.Incr(workerPrefix)
 	return Worker{
 		Name:       fmt.Sprintf("%s-%d", workerPrefix, counters.Get(workerPrefix)),
@@ -58,8 +58,8 @@ func NewWorker(workerPool chan LabelChannel, suh HookEventHandler) Worker {
 		JobLabelChannel: LabelChannel{counters.Get(workerPrefix),
 			make(chan HookEvent),
 		},
-		quit: make(chan bool),
-		Suh:  suh,
+		quit:      make(chan bool),
+		Processor: processor,
 	}
 }
 
@@ -75,7 +75,7 @@ func (w Worker) Start(ctx context.Context) {
 				// we have received a work request.
 				// track the total number of jobs processed by the worker
 				log.Printf("[%s] %s doing job: \n", job.Request.ID, w.Name)
-				w.Suh.apply(job)
+				w.Processor.apply(job)
 
 			case <-ctx.Done():
 				// we have received a signal to stop

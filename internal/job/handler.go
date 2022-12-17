@@ -11,6 +11,11 @@ import (
 	"github.com/adnanh/webhook/internal/hook"
 )
 
+// EventProcessor describes an interface to send hook event somewhere.
+type EventProcessor interface {
+	apply(event HookEvent)
+}
+
 // HookEventHandler include 2 channels for handler
 type HookEventHandler struct {
 	sendUpdates   chan struct{}
@@ -18,7 +23,7 @@ type HookEventHandler struct {
 }
 
 // NewHookEventHandler initial handler with job queue and channel
-func NewHookEventHandler(channelSize int) *HookEventHandler {
+func NewHookEventHandler(channelSize int) EventProcessor {
 	return &HookEventHandler{
 		sendUpdates:   make(chan struct{}),
 		updateChannel: GetJobQueue(), //reference of dispatcher jobQueue

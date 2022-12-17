@@ -40,31 +40,31 @@ type Dispatcher struct {
 	maxWorkers uint32
 	WorkerPool chan LabelChannel
 	Workers    []Worker
-	Suh        HookEventHandler
+	Processor  EventProcessor
 }
 
 // StartQueueDispatcher to initial loading the queue dispatcher
-func StartQueueDispatcher(ctx context.Context, suh HookEventHandler) {
+func StartQueueDispatcher(ctx context.Context, eventProcessor EventProcessor) {
 	logrus.Infoln("Queue Dispatcher starting......")
-	queueDispatcher := NewDispatcher(4, suh)
+	queueDispatcher := NewDispatcher(4, eventProcessor)
 	queueDispatcher.Run(ctx)
 
 }
 
 // NewDispatcher creates new queue dispatcher
-func NewDispatcher(maxWorkers uint32, suh HookEventHandler) *Dispatcher {
+func NewDispatcher(maxWorkers uint32, eventProcessor EventProcessor) *Dispatcher {
 	// make job
 	_ = GetJobQueue()
 
 	pool := make(chan LabelChannel, maxWorkers)
-	return &Dispatcher{WorkerPool: pool, maxWorkers: maxWorkers, Suh: suh}
+	return &Dispatcher{WorkerPool: pool, maxWorkers: maxWorkers, Processor: eventProcessor}
 }
 
 // Run starts work of dispatcher and creates the workers
 func (d *Dispatcher) Run(ctx context.Context) {
 	// starting n number of workers
 	for i := uint32(0); i < d.maxWorkers; i++ {
-		worker := NewWorker(d.WorkerPool, d.Suh)
+		worker := NewWorker(d.WorkerPool, d.Processor)
 		worker.Start(ctx)
 		d.Workers = append(d.Workers, worker)
 	}
