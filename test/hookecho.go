@@ -26,12 +26,12 @@ func main() {
 	}
 
 	if (len(os.Args) > 1) && (strings.HasPrefix(os.Args[1], "exit=")) {
-		exit_code_str := os.Args[1][5:]
-		exit_code, err := strconv.Atoi(exit_code_str)
+		exitCodeStr := os.Args[1][5:]
+		exitCode, err := strconv.Atoi(exitCodeStr)
 		if err != nil {
-			fmt.Printf("Exit code %s not an int!", exit_code_str)
+			fmt.Printf("Exit code %s not an int!", exitCodeStr)
 			os.Exit(-1)
 		}
-		os.Exit(exit_code)
+		os.Exit(exitCode)
 	}
 }

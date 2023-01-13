@@ -222,3 +222,9 @@ THE SOFTWARE.
 [w]: https://github.com/adnanh/webhook
 [wc]: https://github.com/adnanh/webhook-contrib
 [badge]: https://github.com/adnanh/webhook/workflows/build/badge.svg
+
+### JSONPath lib
+https://github.com/ohler55/ojg
+https://github.com/oliveagle/jsonpath
+
+./webhook -verbose -hotreload -hooks=hooks.yaml

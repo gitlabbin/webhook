@@ -10,12 +10,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/adnanh/webhook/internal/hook"
+	"github.com/adnanh/webhook/internal/job"
 	"github.com/adnanh/webhook/internal/middleware"
 	"github.com/adnanh/webhook/internal/pidfile"
 
@@ -25,7 +24,7 @@ import (
 )
 
 const (
-	version = "2.8.0"
+	version = "2.8.1"
 )
 
 var (
@@ -183,7 +182,10 @@ func main() {
 	log.Println("version " + version + " starting")
 
 	// set os signal watcher
-	setupSignals()
+	//setupSignals()
+	var maxWorkers uint32 = 4
+	var queueSize int = 1000
+	appCtx := SetupSignalHandler(maxWorkers)
 
 	// load and parse hooks
 	for _, hooksFilePath := range hooksFiles {
@@ -269,6 +271,9 @@ func main() {
 	})
 
 	r.HandleFunc(hooksURL, hookHandler)
+
+	eventHandler := job.NewHookEventHandler(queueSize)
+	job.StartQueueDispatcher(appCtx, &waitGroup, eventHandler, queueSize, maxWorkers)
 
 	// Create common HTTP server settings
 	svr := &http.Server{
@@ -505,7 +510,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if matchedHook.CaptureCommandOutput {
-			response, err := handleHook(matchedHook, req)
+			response, err := job.HandleHook(matchedHook, req)
 
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -517,17 +522,18 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				// Check if a success return code is configured for the hook
-				if matchedHook.SuccessHttpResponseCode != 0 {
-					writeHttpResponseCode(w, req.ID, matchedHook.ID, matchedHook.SuccessHttpResponseCode)
+				if matchedHook.SuccessHTTPResponseCode != 0 {
+					writeHTTPResponseCode(w, req.ID, matchedHook.ID, matchedHook.SuccessHTTPResponseCode)
 				}
 				fmt.Fprint(w, response)
 			}
 		} else {
-			go handleHook(matchedHook, req)
+			//go handleHook(matchedHook, req)
+			job.Push(job.HookEvent{Hook: *matchedHook, Request: *req})
 
 			// Check if a success return code is configured for the hook
-			if matchedHook.SuccessHttpResponseCode != 0 {
-				writeHttpResponseCode(w, req.ID, matchedHook.ID, matchedHook.SuccessHttpResponseCode)
+			if matchedHook.SuccessHTTPResponseCode != 0 {
+				writeHTTPResponseCode(w, req.ID, matchedHook.ID, matchedHook.SuccessHTTPResponseCode)
 			}
 
 			fmt.Fprint(w, matchedHook.ResponseMessage)
@@ -536,8 +542,8 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if a return code is configured for the hook
-	if matchedHook.TriggerRuleMismatchHttpResponseCode != 0 {
-		writeHttpResponseCode(w, req.ID, matchedHook.ID, matchedHook.TriggerRuleMismatchHttpResponseCode)
+	if matchedHook.TriggerRuleMismatchHTTPResponseCode != 0 {
+		writeHTTPResponseCode(w, req.ID, matchedHook.ID, matchedHook.TriggerRuleMismatchHTTPResponseCode)
 	}
 
 	// if none of the hooks got triggered
@@ -546,105 +552,13 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Hook rules were not satisfied.")
 }
 
-func handleHook(h *hook.Hook, r *hook.Request) (string, error) {
-	var errors []error
-
-	// check the command exists
-	var lookpath string
-	if filepath.IsAbs(h.ExecuteCommand) || h.CommandWorkingDirectory == "" {
-		lookpath = h.ExecuteCommand
-	} else {
-		lookpath = filepath.Join(h.CommandWorkingDirectory, h.ExecuteCommand)
-	}
-
-	cmdPath, err := exec.LookPath(lookpath)
-	if err != nil {
-		log.Printf("[%s] error in %s", r.ID, err)
-
-		// check if parameters specified in execute-command by mistake
-		if strings.IndexByte(h.ExecuteCommand, ' ') != -1 {
-			s := strings.Fields(h.ExecuteCommand)[0]
-			log.Printf("[%s] use 'pass-arguments-to-command' to specify args for '%s'", r.ID, s)
-		}
-
-		return "", err
-	}
-
-	cmd := exec.Command(cmdPath)
-	cmd.Dir = h.CommandWorkingDirectory
-
-	cmd.Args, errors = h.ExtractCommandArguments(r)
-	for _, err := range errors {
-		log.Printf("[%s] error extracting command arguments: %s\n", r.ID, err)
-	}
-
-	var envs []string
-	envs, errors = h.ExtractCommandArgumentsForEnv(r)
-
-	for _, err := range errors {
-		log.Printf("[%s] error extracting command arguments for environment: %s\n", r.ID, err)
-	}
-
-	files, errors := h.ExtractCommandArgumentsForFile(r)
-
-	for _, err := range errors {
-		log.Printf("[%s] error extracting command arguments for file: %s\n", r.ID, err)
-	}
-
-	for i := range files {
-		tmpfile, err := ioutil.TempFile(h.CommandWorkingDirectory, files[i].EnvName)
-		if err != nil {
-			log.Printf("[%s] error creating temp file [%s]", r.ID, err)
-			continue
-		}
-		log.Printf("[%s] writing env %s file %s", r.ID, files[i].EnvName, tmpfile.Name())
-		if _, err := tmpfile.Write(files[i].Data); err != nil {
-			log.Printf("[%s] error writing file %s [%s]", r.ID, tmpfile.Name(), err)
-			continue
-		}
-		if err := tmpfile.Close(); err != nil {
-			log.Printf("[%s] error closing file %s [%s]", r.ID, tmpfile.Name(), err)
-			continue
-		}
-
-		files[i].File = tmpfile
-		envs = append(envs, files[i].EnvName+"="+tmpfile.Name())
-	}
-
-	cmd.Env = append(os.Environ(), envs...)
-
-	log.Printf("[%s] executing %s (%s) with arguments %q and environment %s using %s as cwd\n", r.ID, h.ExecuteCommand, cmd.Path, cmd.Args, envs, cmd.Dir)
-
-	out, err := cmd.CombinedOutput()
-
-	log.Printf("[%s] command output: %s\n", r.ID, out)
-
-	if err != nil {
-		log.Printf("[%s] error occurred: %+v\n", r.ID, err)
-	}
-
-	for i := range files {
-		if files[i].File != nil {
-			log.Printf("[%s] removing file %s\n", r.ID, files[i].File.Name())
-			err := os.Remove(files[i].File.Name())
-			if err != nil {
-				log.Printf("[%s] error removing file %s [%s]", r.ID, files[i].File.Name(), err)
-			}
-		}
-	}
-
-	log.Printf("[%s] finished handling %s\n", r.ID, h.ID)
-
-	return string(out), err
-}
-
-func writeHttpResponseCode(w http.ResponseWriter, rid, hookId string, responseCode int) {
+func writeHTTPResponseCode(w http.ResponseWriter, rid, hookID string, responseCode int) {
 	// Check if the given return code is supported by the http package
 	// by testing if there is a StatusText for this code.
 	if len(http.StatusText(responseCode)) > 0 {
 		w.WriteHeader(responseCode)
 	} else {
-		log.Printf("[%s] %s got matched, but the configured return code %d is unknown - defaulting to 200\n", rid, hookId, responseCode)
+		log.Printf("[%s] %s got matched, but the configured return code %d is unknown - defaulting to 200\n", rid, hookID, responseCode)
 	}
 }
 

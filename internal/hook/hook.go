@@ -26,6 +26,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/oliveagle/jsonpath"
+
 	"github.com/ghodss/yaml"
 )
 
@@ -234,7 +236,7 @@ func CheckPayloadSignature512(payload []byte, secret, signature string) (string,
 	return ValidateMAC(payload, hmac.New(sha512.New, []byte(secret)), signatures)
 }
 
-func CheckScalrSignature(r *Request, signingKey string, checkDate bool) (bool, error) {
+func checkScalrSignature(r *Request, signingKey string, checkDate bool) (bool, error) {
 	if r.Headers == nil {
 		return false, nil
 	}
@@ -411,8 +413,15 @@ func GetParameter(s string, params interface{}) (interface{}, error) {
 // ExtractParameterAsString extracts value from interface{} as string based on
 // the passed string.  Complex data types are rendered as JSON instead of the Go
 // Stringer format.
-func ExtractParameterAsString(s string, params interface{}) (string, error) {
-	pValue, err := GetParameter(s, params)
+func ExtractParameterAsString(s string, params interface{}, jpath string) (string, error) {
+	var pValue interface{}
+	var err error
+	if len(jpath) > 0 {
+		pValue, err = getParameterJPath(jpath, params)
+	} else {
+		pValue, err = GetParameter(s, params)
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -431,6 +440,16 @@ func ExtractParameterAsString(s string, params interface{}) (string, error) {
 	}
 }
 
+func getParameterJPath(s string, params interface{}) (interface{}, error) {
+	//res, err := jsonpath.JsonPathLookup(params, "$.expensive")
+
+	//or reuse lookup pattern
+	//pat, _ := jsonpath.Compile(`$.store.book[?(@.price < $.expensive)].price`)
+	pat, _ := jsonpath.Compile(s)
+	res, err := pat.Lookup(params)
+	return res, err
+}
+
 // Argument type specifies the parameter key name and the source it should
 // be extracted from
 type Argument struct {
@@ -438,6 +457,7 @@ type Argument struct {
 	Name         string `json:"name,omitempty"`
 	EnvName      string `json:"envname,omitempty"`
 	Base64Decode bool   `json:"base64decode,omitempty"`
+	Expression   string `json:"expression,omitempty"`
 }
 
 // Get Argument method returns the value for the Argument's key name
@@ -503,7 +523,7 @@ func (ha *Argument) Get(r *Request) (string, error) {
 	}
 
 	if source != nil {
-		return ExtractParameterAsString(key, *source)
+		return ExtractParameterAsString(key, *source, ha.Expression)
 	}
 
 	return "", errors.New("no source for value retrieval")
@@ -576,10 +596,10 @@ type Hook struct {
 	PassFileToCommand                   []Argument      `json:"pass-file-to-command,omitempty"`
 	JSONStringParameters                []Argument      `json:"parse-parameters-as-json,omitempty"`
 	TriggerRule                         *Rules          `json:"trigger-rule,omitempty"`
-	TriggerRuleMismatchHttpResponseCode int             `json:"trigger-rule-mismatch-http-response-code,omitempty"`
+	TriggerRuleMismatchHTTPResponseCode int             `json:"trigger-rule-mismatch-http-response-code,omitempty"`
 	TriggerSignatureSoftFailures        bool            `json:"trigger-signature-soft-failures,omitempty"`
 	IncomingPayloadContentType          string          `json:"incoming-payload-content-type,omitempty"`
-	SuccessHttpResponseCode             int             `json:"success-http-response-code,omitempty"`
+	SuccessHTTPResponseCode             int             `json:"success-http-response-code,omitempty"`
 	HTTPMethods                         []string        `json:"http-methods"`
 }
 
@@ -914,7 +934,7 @@ func (r MatchRule) Evaluate(req *Request) (bool, error) {
 		return CheckIPWhitelist(req.RawRequest.RemoteAddr, r.IPRange)
 	}
 	if r.Type == ScalrSignature {
-		return CheckScalrSignature(req, r.Secret, true)
+		return checkScalrSignature(req, r.Secret, true)
 	}
 
 	arg, err := r.Parameter.Get(req)

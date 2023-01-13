@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/adnanh/webhook/internal/hook"
+	"github.com/adnanh/webhook/internal/job"
 )
 
 func TestStaticParams(t *testing.T) {
@@ -58,7 +59,7 @@ func TestStaticParams(t *testing.T) {
 		ID:      "test",
 		Headers: spHeaders,
 	}
-	_, err = handleHook(spHook, r)
+	_, err = job.HandleHook(spHook, r)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}

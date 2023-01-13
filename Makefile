@@ -1,5 +1,5 @@
-OS = darwin freebsd linux openbsd
-ARCHS = 386 arm amd64 arm64
+OS = linux
+ARCHS = amd64
 
 .DEFAULT_GOAL := help
 
@@ -7,7 +7,8 @@ ARCHS = 386 arm amd64 arm64
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-all: build release release-windows
+#all: build release release-windows
+all: fmt lint vet build release
 
 build: deps ## Build the project
 	go build
@@ -23,6 +24,7 @@ release: clean deps ## Generate releases for unix systems
 			tar cz -C build -f build/webhook-$$os-$$arch.tar.gz webhook-$$os-$$arch; \
 		done \
 	done
+	cp build/webhook-linux-amd64/webhook ~/workspace/icc/cicd-hooks/docker-webhook/bin
 
 release-windows: clean deps ## Generate release for windows
 	@for arch in $(ARCHS);\
@@ -42,3 +44,27 @@ deps: ## Install dependencies using go get
 clean: ## Remove building artifacts
 	rm -rf build
 	rm -f webhook
+
+tools:
+	go get golang.org/x/tools/cmd/goimports
+	go get github.com/kisielk/errcheck
+	go get github.com/golang/lint/golint
+	go get github.com/axw/gocov/gocov
+	go get github.com/matm/gocov-html
+	go get github.com/tools/godep
+	go get github.com/mitchellh/gox
+
+vet:
+	go vet -v ./...
+
+errors:
+	errcheck -ignoretests -blank ./...
+
+lint:
+	golint ./...
+
+imports:
+	goimports -l -w .
+
+fmt: imports
+	go fmt ./...
